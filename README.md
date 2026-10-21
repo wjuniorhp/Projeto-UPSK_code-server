@@ -1,5 +1,13 @@
 # Infraestrutura AWS — Ambiente de desenvolvimento Code-Server | UPSK
 
+## Integrantes do grupo
+
+- José Wellington Alves Rocha Júnior
+- Eduardo Prado Takitani
+- Matheus Vinicius Queiroz Alves
+- Guilherme Roberto Alves Shiga
+- Paulo Felipe de Araujo Junior
+
 Projeto educacional de infraestrutura para uma startup fictícia, desenvolvido no contexto de Upskilling para aplicar conceitos de **Infrastructure as Code (IaC)**, redes, computação, auditoria e monitoramento na AWS.
 
 A solução disponibiliza um ambiente de programação acessível pelo navegador usando **Code-Server em Docker sobre Amazon EC2**, com infraestrutura definida em **AWS CloudFormation** e implantação automatizada por **AWS CLI**.
