@@ -1,0 +1,59 @@
+#--------------------------------------------------
+# Arquivo security.yaml - Firewall - 80, 22, 443
+#--------------------------------------------------
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  Security Group da Infra Code Server
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: ID da VPC
+  SGName:
+    Type: String
+    Default: WebServer
+
+Resources:
+  #=====================================
+  # Security Group - Firewall
+  #=====================================
+  WebSG:
+    Type: AWS::EC2::SecurityGroup
+
+    Properties:
+      GroupDescription: Permite SSH
+      VpcId: !Ref VpcId
+
+      SecurityGroupIngress:
+        - IpProtocol: tcp  # ssh
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+
+        - IpProtocol: tcp  # http
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+
+        - IpProtocol: tcp  # https
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+
+      SecurityGroupEgress:
+        - IpProtocol: -1
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+
+      Tags:
+        - Key: Name
+          Value: !Sub Firewall-${SGName}
+
+Outputs:
+  WebSecurityGroupId:
+    Description: Id do Firewall
+    Value: !Ref WebSG
+    Export:
+      Name: CodeServer-WebSG

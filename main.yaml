@@ -1,0 +1,123 @@
+#--------------------------------------------------
+# Arquivo main.yaml - Orquestrador
+#--------------------------------------------------
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  VPC + Subnets + Internet Gateway + NAT Gateway
+
+Parameters:
+  # KeyName:
+  #   Type: AWS::EC2::KeyPair::KeyName
+  #   Description: Nome do Key Pair existente
+  BucketS3:
+    Type: String
+    Description: Nome do bucket S3 com os arquivos
+
+  NameVPC:
+    Type: String
+    Default: CodeServer
+
+  cidrBlockSubPub:
+    Type: String
+    Description: Divisão de IPs da Subnet Pública
+    Default: 10.0.1.0/24
+
+  cidrBlockSubPrivate:
+    Type: String
+    Description: Divisão de IPs da Subnet Privada
+    Default: 10.0.2.0/24
+
+Resources:
+  VPC:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${BucketS3}.amazonaws.com/modules/vpc.yaml
+      Parameters:
+        Name: !Ref NameVPC
+
+  SubnetPublica:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${BucketS3}.amazonaws.com/modules/subnet.yaml
+      Parameters:
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SubnetCidr: !Ref cidrBlockSubPub
+        Public: true
+        AZ: 0
+        SubnetName: CodeServerSubPub
+
+  SubnetPrivada:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${BucketS3}.amazonaws.com/modules/subnet.yaml
+      Parameters:
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SubnetCidr: !Ref cidrBlockSubPrivate
+        Public: false
+        AZ: 1
+        SubnetName: CodeServerSubPrivada
+
+  Gateways:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - VPC
+      - SubnetPublica
+      - SubnetPrivada
+    Properties:
+      TemplateURL: !Sub https://${BucketS3}.amazonaws.com/modules/gateways.yaml
+      Parameters:
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SubnetPub: !GetAtt SubnetPublica.Outputs.SubnetId
+
+  TableRoutesPublic:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - Gateways
+      - SubnetPublica
+    Properties:
+      TemplateURL: !Sub https://${BucketS3}.amazonaws.com/modules/routeTables.yaml
+      Parameters:
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SubnetId: !GetAtt SubnetPublica.Outputs.SubnetId
+        TipoGateway: pub
+        GatewayId: !GetAtt Gateways.Outputs.InternetGatewayId
+
+  TableRoutesPrivate:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+      - Gateways
+      - SubnetPrivada
+    Properties:
+      TemplateURL: !Sub https://${BucketS3}.amazonaws.com/modules/routeTables.yaml
+      Parameters:
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SubnetId: !GetAtt SubnetPrivada.Outputs.SubnetId
+        TipoGateway: priv
+        GatewayId: !GetAtt Gateways.Outputs.NatGatewayId
+
+  SecurityGroup:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub https://${BucketS3}.amazonaws.com/modules/security.yaml
+      Parameters:
+        VpcId: !GetAtt VPC.Outputs.VpcId
+        SGName: CodeServer
+
+        
+Outputs:
+  VpcId:
+    Value: !GetAtt VPC.Outputs.VpcId
+  SubnetPubId:
+    Value: !GetAtt SubnetPublica.Outputs.SubnetId
+  SubnetPrivId:
+    Value: !GetAtt SubnetPrivada.Outputs.SubnetId
+  InternetGatewayId:
+    Value: !GetAtt Gateways.Outputs.InternetGatewayId
+  NatEIPId:
+    Value: !GetAtt Gateways.Outputs.NatEIPId
+  NatGatewayId:
+    Value: !GetAtt Gateways.Outputs.NatGatewayId
+  WebSecurityGroupId:
+    Description: ID do Security Group
+    Value: !GetAtt SecurityGroup.Outputs.WebSecurityGroupId

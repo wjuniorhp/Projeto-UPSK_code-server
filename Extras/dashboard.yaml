@@ -1,0 +1,393 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: >
+  Dashboard de monitoramento de segurança e infraestrutura
+  utilizando Amazon CloudWatch e AWS CloudTrail.
+
+
+#============================================================
+#    PARAMETERS
+#============================================================
+
+Parameters:
+
+  Environment:
+    Type: String
+    Default: dev
+    Description: Nome do ambiente
+    AllowedPattern: '^[a-zA-Z0-9-]+$'
+
+  EC2AlarmArn:
+    Type: String
+    Default: ''
+    Description: >
+      ARN de um CloudWatch Alarm relacionado à EC2.
+      Deixe vazio caso não exista um alarme específico.
+
+
+#============================================================
+#    CONDITIONS
+#============================================================
+
+Conditions:
+
+  HasEC2Alarm: !Not
+    - !Equals
+      - !Ref EC2AlarmArn
+      - ''
+
+
+#============================================================
+#    DASHBOARD - SEM ALARM
+#============================================================
+
+Resources:
+
+  SecurityMonitoringDashboard:
+    Type: AWS::CloudWatch::Dashboard
+
+    Properties:
+
+      DashboardName: !Sub '${Environment}-security-monitoring'
+
+      DashboardBody: !If
+        - HasEC2Alarm
+
+        #====================================================
+        # DASHBOARD COM ALARM
+        #====================================================
+
+        - !Sub |
+            {
+              "widgets": [
+
+                {
+                  "type": "text",
+                  "x": 0,
+                  "y": 0,
+                  "width": 24,
+                  "height": 2,
+                  "properties": {
+                    "markdown": "# AWS Security & Infrastructure Monitoring\n## Environment: ${Environment}\n\nDashboard de monitoramento de infraestrutura e segurança."
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 2,
+                  "width": 8,
+                  "height": 6,
+                  "properties": {
+                    "title": "EC2 CPU Utilization",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Average",
+                    "metrics": [
+                      [
+                        "AWS/EC2",
+                        "CPUUtilization",
+                        {
+                          "stat": "Average"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 8,
+                  "y": 2,
+                  "width": 8,
+                  "height": 6,
+                  "properties": {
+                    "title": "EC2 Status Checks",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 60,
+                    "stat": "Maximum",
+                    "metrics": [
+                      [
+                        "AWS/EC2",
+                        "StatusCheckFailed",
+                        {
+                          "stat": "Maximum"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 16,
+                  "y": 2,
+                  "width": 8,
+                  "height": 6,
+                  "properties": {
+                    "title": "EC2 Network",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Average",
+                    "metrics": [
+                      [
+                        "AWS/EC2",
+                        "NetworkIn",
+                        {
+                          "stat": "Average"
+                        }
+                      ],
+                      [
+                        "AWS/EC2",
+                        "NetworkOut",
+                        {
+                          "stat": "Average"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 8,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                    "title": "CloudTrail Events",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Sum",
+                    "metrics": [
+                      [
+                        "AWS/CloudTrail",
+                        "ApiCallCount",
+                        {
+                          "stat": "Sum"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 8,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                    "title": "CloudWatch Metrics",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Sum",
+                    "metrics": [
+                      [
+                        "AWS/Usage",
+                        "CallCount",
+                        "Type",
+                        "API",
+                        "Resource",
+                        "PutMetricData",
+                        {
+                          "stat": "Sum"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "alarm",
+                  "x": 0,
+                  "y": 14,
+                  "width": 24,
+                  "height": 6,
+                  "properties": {
+                    "title": "EC2 Alarms",
+                    "alarms": [
+                      "${EC2AlarmArn}"
+                    ]
+                  }
+                }
+
+              ]
+            }
+
+        #====================================================
+        # DASHBOARD SEM ALARM
+        #====================================================
+
+        - !Sub |
+            {
+              "widgets": [
+
+                {
+                  "type": "text",
+                  "x": 0,
+                  "y": 0,
+                  "width": 24,
+                  "height": 2,
+                  "properties": {
+                    "markdown": "# AWS Security & Infrastructure Monitoring\n## Environment: ${Environment}\n\nDashboard de monitoramento de infraestrutura e segurança."
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 2,
+                  "width": 8,
+                  "height": 6,
+                  "properties": {
+                    "title": "EC2 CPU Utilization",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Average",
+                    "metrics": [
+                      [
+                        "AWS/EC2",
+                        "CPUUtilization",
+                        {
+                          "stat": "Average"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 8,
+                  "y": 2,
+                  "width": 8,
+                  "height": 6,
+                  "properties": {
+                    "title": "EC2 Status Checks",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 60,
+                    "stat": "Maximum",
+                    "metrics": [
+                      [
+                        "AWS/EC2",
+                        "StatusCheckFailed",
+                        {
+                          "stat": "Maximum"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 16,
+                  "y": 2,
+                  "width": 8,
+                  "height": 6,
+                  "properties": {
+                    "title": "EC2 Network",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Average",
+                    "metrics": [
+                      [
+                        "AWS/EC2",
+                        "NetworkIn",
+                        {
+                          "stat": "Average"
+                        }
+                      ],
+                      [
+                        "AWS/EC2",
+                        "NetworkOut",
+                        {
+                          "stat": "Average"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 0,
+                  "y": 8,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                    "title": "CloudTrail Events",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Sum",
+                    "metrics": [
+                      [
+                        "AWS/CloudTrail",
+                        "ApiCallCount",
+                        {
+                          "stat": "Sum"
+                        }
+                      ]
+                    ]
+                  }
+                },
+
+                {
+                  "type": "metric",
+                  "x": 12,
+                  "y": 8,
+                  "width": 12,
+                  "height": 6,
+                  "properties": {
+                    "title": "CloudWatch Metrics",
+                    "region": "${AWS::Region}",
+                    "view": "timeSeries",
+                    "period": 300,
+                    "stat": "Sum",
+                    "metrics": [
+                      [
+                        "AWS/Usage",
+                        "CallCount",
+                        "Type",
+                        "API",
+                        "Resource",
+                        "PutMetricData",
+                        {
+                          "stat": "Sum"
+                        }
+                      ]
+                    ]
+                  }
+                }
+
+              ]
+            }
+
+
+#============================================================
+#    OUTPUTS
+#============================================================
+
+Outputs:
+
+  SecurityDashboardURL:
+    Description: URL do dashboard de CloudWatch
+
+    Value: !Sub >
+      https://${AWS::Region}.console.aws.amazon.com/cloudwatch/home?region=${AWS::Region}#dashboards:name=${Environment}-security-monitoring
+
+
+  SecurityDashboardName:
+    Description: Nome do dashboard de segurança
+
+    Value: !Sub '${Environment}-security-monitoring'

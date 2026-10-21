@@ -1,0 +1,88 @@
+#--------------------------------------------------
+# Arquivo codeserver.yaml - Servidor de VS code
+#--------------------------------------------------
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: >
+  EC2 Docker Code server
+
+Parameters:
+  EC2Modelo:
+    Type: String
+    AllowedValues:
+      - t2.medium # banco de dados
+      - t3.micro  # servidores de app
+      - t3.small
+      - t3.medium
+    Default: t3.medium
+
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Description: Nome do Key Pair existente
+
+  NomeInstancia:
+    Type: String
+    Default: Docker-CodeServer
+
+Resources:
+  CodeServer:
+    Type: AWS::EC2::Instance
+
+    # propriedades do recurso
+    Properties:
+      # tamanho da máquina T2, T3...
+      InstanceType: !Ref EC2Modelo
+
+      # chave de criptografia de acesso à máquina
+      KeyName: !Ref KeyName
+
+      # Imagem da máquina - o AMI depende da Região - define o Sistema Operacional
+      # ImageId: ami-02167eae61967e403
+      ImageId: !Sub "{{resolve:ssm:/aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id}}"
+
+      SubnetId: 
+        Fn::ImportValue: CodeServer-CodeServerSubPub
+
+      SecurityGroupIds: # aplica o firewall
+        - Fn::ImportValue: CodeServer-WebSG
+
+      Tags:
+        - Key: Name
+          Value: !Sub ${NomeInstancia}-EC2
+
+      UserData:
+        Fn::Base64: |
+          #!/bin/bash
+          
+          apt update -y
+          apt install -y docker.io git htop micro
+
+          systemctl enable docker
+          systemctl start docker
+
+          # Cria o container
+          docker run -d \
+            --name=code-server \
+            -e PUID=1000 \
+            -e PGID=1000 \
+            -e TZ="America/Sao_Paulo" \
+            -e PASSWORD="123" \
+            -e DEFAULT_WORKSPACE=/config/workspace \
+            -e PWA_APPNAME=code-server \
+            -p 80:8443 \
+            -v vscode-config:/config \
+            -v $(pwd):/home/coder/project \
+            --user $(id -u):$(id -g) \
+            --restart unless-stopped \
+            lscr.io/linuxserver/code-server:latest
+
+
+
+
+Outputs:
+  PublicIp:
+    Description: IP Público da EC2
+    Value: !GetAtt CodeServer.PublicIp
+  PublicDns:
+    Description: DNS Público
+    Value: !GetAtt CodeServer.PublicDnsName
